@@ -117,9 +117,9 @@ contract Market is Ownable {
     require(vendorBalance >= amount, "Vendor contract has not enough shards in its balance");
 
     uint256 amountOfUsdFromEth = convertEthInUsd(msg.value);
-    uint256 amountOfMaticFromUsd = convertUsdInMatic(amountOfUsdFromEth);
+    uint256 amountOfMaticFromUsd = convertUsdInMatic(amountOfUsdFromEth); 
 
-    uint amountOfMaticRequired = amount * shardsPerMatic * (10 ** 18);
+    uint amountOfMaticRequired = (amount / shardsPerMatic) * (10 ** 44);
     require(amountOfMaticFromUsd >= amountOfMaticRequired, "Incorrect number of MATIC given for the wanted amount of shards");
 
     SafeERC20.safeTransfer(shard, msg.sender, amount);

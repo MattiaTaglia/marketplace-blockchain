@@ -9,6 +9,7 @@ const { web3 } = require('@openzeppelin/test-helpers/src/setup');
 
 const fromWei = (x: number) => web3.utils.fromWei(x.toString());
 const toWei = (x: number) => web3.utils.toWei(x.toString());
+const round2Decimals = (x: number | string) => Math.round((Number(x) + Number.EPSILON) * 100) / 100;
 
 describe('Market', function() {
   async function deployMarket() {
@@ -71,27 +72,46 @@ describe('Market', function() {
     it("Get conversion ETH/USD", async function() {
       const { priceConsumer_ETH_USD, market } = await loadFixture(deployMarket);
 
+      const ethValue = 0.0010
+      const usdValue = 2000
+
       const price = await priceConsumer_ETH_USD.getLatestPrice();
       console.log("Price from oracle is: ", BigInt(price).toString());
       
-      const convertedPrice = await market.convertEthInUsd(toWei(0.005));
-      console.log("0.005 ETH is: ", fromWei(Number(convertedPrice) / 10 ** 8), " USD")
+      const convertedPrice = await market.convertEthInUsd(toWei(ethValue));
+      console.log(ethValue, " ETH is: ", round2Decimals(fromWei(Number(convertedPrice) / 10 ** 8)), " USD")
 
-      const convertedUsd = await market.convertUsdInEth(2000);
-      console.log("2000 USD are: ",  fromWei(Number(convertedUsd)), " ETH")
+      const convertedUsd = await market.convertUsdInEth(usdValue);
+      console.log(usdValue, " USD are: ",  round2Decimals(fromWei(Number(convertedUsd))), " ETH")
     })
 
     it("Get conversion MATIC/USD", async function() {
       const { priceConsumer_MATIC_USD, market } = await loadFixture(deployMarket);
-  
+      
+      const maticValue = 0.5
+      const usdValue = 2
+
       const price = await priceConsumer_MATIC_USD.getLatestPrice();
       console.log("MATIC oracle price is: ", BigInt(price).toString());
       
-      const convertedPrice = await market.convertMaticInUsd(toWei(0.5));
-      console.log("0.5 MATIC is: ", fromWei(Number(convertedPrice) / 10 ** 8), " USD")
+      const convertedPrice = await market.convertMaticInUsd(toWei(maticValue));
+      console.log(maticValue, " MATIC is: ", round2Decimals(fromWei(Number(convertedPrice) / 10 ** 8)), " USD")
   
-      const convertedUsd = await market.convertUsdInMatic(2);
-      console.log("2 USD are: ",  fromWei(Number(convertedUsd)), " MATIC")
+      const convertedUsd = await market.convertUsdInMatic(usdValue);
+      console.log(usdValue, " USD are: ",  round2Decimals(fromWei(Number(convertedUsd))), " MATIC")
+    })
+
+    it("Get conversion ETH/MATIC", async function() {
+      const { market } = await loadFixture(deployMarket);
+  
+      const ethValue = 0.0010
+
+      const convertedEthUsd = await market.convertEthInUsd(toWei(ethValue));
+      console.log(ethValue, " ETH are: ", round2Decimals(fromWei(Number(convertedEthUsd) / 10 ** 8)), " USD")
+
+      const convertedUsdMatic = await market.convertUsdInMatic(convertedEthUsd);
+      console.log(round2Decimals(fromWei(Number(convertedEthUsd) / 10 ** 8)), " USD are: ",  
+        round2Decimals(fromWei(Number(convertedUsdMatic) / 10 ** 26)), " MATIC")
     })
   })
 
@@ -139,6 +159,19 @@ describe('Market', function() {
       .withArgs(otherAccount.address, amountOfEth, amountToBuy)
     })
 
+    it("Buy some shards with ETH (insufficient amount)", async function() {
+      const { shard, market, owner, otherAccount } = await loadFixture(deployMarket);
+      
+      const amountToBuy = 100
+      const amountOfEth = ethers.parseEther('0.00010')
+      
+      await expect(
+        market.connect(otherAccount).buyShardsInEth(amountToBuy, {
+          value: amountOfEth
+        })
+      )
+      .to.be.revertedWith("Incorrect number of MATIC given for the wanted amount of shards")
+    })
   })
 
 /*   describe("Acquisitions of ItemSkin", function() {
