@@ -34,18 +34,15 @@ describe('Market', function() {
     const priceConsumer_ETH_USD = await PriceConsumerV3.deploy(priceFeedAddress_ETH_USD)
     const priceConsumer_MATIC_USD = await PriceConsumerV3.deploy(priceFeedAddress_MATIC_USD)
 
-    const ItemSkin = await ethers.getContractFactory("ItemSkin");
-    const itemSkin = await ItemSkin.deploy();
-    //await itemSkin.safeMint(owner, )
 
     const Market = await ethers.getContractFactory("Market");
-    const market = await Market.deploy(await shard.getAddress(), await itemSkin.getAddress(), 
-      await priceConsumer_ETH_USD.getAddress(), priceConsumer_MATIC_USD.getAddress())
+    const market = await Market.deploy(await shard.getAddress(), await priceConsumer_ETH_USD.getAddress(), 
+      priceConsumer_MATIC_USD.getAddress())
 
-    await shard.transfer(await market.getAddress(), ethers.parseEther('20'))
+    await shard.transfer(await market.getAddress(), ethers.parseEther('1000'))
     await market.transferOwnership(owner.address)
 
-    return { shard, itemSkin, priceConsumer_ETH_USD, priceConsumer_MATIC_USD, market, shardAmount, owner, otherAccount }
+    return { shard, priceConsumer_ETH_USD, priceConsumer_MATIC_USD, market, shardAmount, owner, otherAccount }
   }
 
   describe("Deployment", function() {
@@ -55,16 +52,18 @@ describe('Market', function() {
       expect(await shard.getAddress()).to.match(/0x[0-9a-fA-F]{40}/);
     })
 
-    it("Check if itemSkin contract is deployed correctly", async function() {
-      const { itemSkin } = await loadFixture(deployMarket);
-      
-      expect(await itemSkin.getAddress()).to.match(/0x[0-9a-fA-F]{40}/);
-    })
-
     it("Check if market contract is deployed correctly", async function() {
       const { market } = await loadFixture(deployMarket);
       
       expect(await market.getAddress()).to.match(/0x[0-9a-fA-F]{40}/);
+    })
+
+    it("Check Market Balance", async function() {
+      const { market } = await loadFixture(deployMarket);
+      const marketBalance = await market.getShardBalance()
+      
+      expect(await market.getShardBalance()).to.be.eq(ethers.parseEther('1000'))
+      console.log("Market balance:", round2Decimals(Number(marketBalance) / 10 ** 18))
     })
   })
 
@@ -76,13 +75,13 @@ describe('Market', function() {
       const usdValue = 2000
 
       const price = await priceConsumer_ETH_USD.getLatestPrice();
-      console.log("Price from oracle is: ", BigInt(price).toString());
+      console.log("Price from oracle is:", BigInt(price).toString());
       
       const convertedPrice = await market.convertEthInUsd(toWei(ethValue));
-      console.log(ethValue, " ETH is: ", round2Decimals(fromWei(Number(convertedPrice) / 10 ** 8)), " USD")
+      console.log(ethValue, " ETH is:", round2Decimals(fromWei(Number(convertedPrice) / 10 ** 8)), "USD")
 
       const convertedUsd = await market.convertUsdInEth(usdValue);
-      console.log(usdValue, " USD are: ",  round2Decimals(fromWei(Number(convertedUsd))), " ETH")
+      console.log(usdValue, " USD are:",  round2Decimals(fromWei(Number(convertedUsd))), "ETH")
     })
 
     it("Get conversion MATIC/USD", async function() {
@@ -92,13 +91,13 @@ describe('Market', function() {
       const usdValue = 2
 
       const price = await priceConsumer_MATIC_USD.getLatestPrice();
-      console.log("MATIC oracle price is: ", BigInt(price).toString());
+      console.log("MATIC oracle price is:", BigInt(price).toString());
       
       const convertedPrice = await market.convertMaticInUsd(toWei(maticValue));
-      console.log(maticValue, " MATIC is: ", round2Decimals(fromWei(Number(convertedPrice) / 10 ** 8)), " USD")
+      console.log(maticValue, "MATIC is:", round2Decimals(fromWei(Number(convertedPrice) / 10 ** 8)), "USD")
   
       const convertedUsd = await market.convertUsdInMatic(usdValue);
-      console.log(usdValue, " USD are: ",  round2Decimals(fromWei(Number(convertedUsd))), " MATIC")
+      console.log(usdValue, "USD are:",  round2Decimals(fromWei(Number(convertedUsd))), "MATIC")
     })
 
     it("Get conversion ETH/MATIC", async function() {
@@ -107,11 +106,11 @@ describe('Market', function() {
       const ethValue = 0.0010
 
       const convertedEthUsd = await market.convertEthInUsd(toWei(ethValue));
-      console.log(ethValue, " ETH are: ", round2Decimals(fromWei(Number(convertedEthUsd) / 10 ** 8)), " USD")
+      console.log(ethValue, "ETH are:", round2Decimals(fromWei(Number(convertedEthUsd) / 10 ** 8)), "USD")
 
       const convertedUsdMatic = await market.convertUsdInMatic(convertedEthUsd);
-      console.log(round2Decimals(fromWei(Number(convertedEthUsd) / 10 ** 8)), " USD are: ",  
-        round2Decimals(fromWei(Number(convertedUsdMatic) / 10 ** 26)), " MATIC")
+      console.log(round2Decimals(fromWei(Number(convertedEthUsd) / 10 ** 8)), "USD are: ",  
+        round2Decimals(fromWei(Number(convertedUsdMatic) / 10 ** 26)), "MATIC")
     })
   })
 
@@ -119,7 +118,7 @@ describe('Market', function() {
     it("Buy some shards with MATIC", async function() {
       const { shard, market, owner, otherAccount } = await loadFixture(deployMarket);
       
-      const amountToBuy = 100
+      const amountToBuy = ethers.parseEther('100')
       const amountOfMatic = ethers.parseEther('2')
       await expect(
         market.connect(otherAccount).buyShardsInMatic(amountToBuy, {
@@ -133,7 +132,7 @@ describe('Market', function() {
     it("Buy some shards with USD", async function() {
       const { shard, market, owner, otherAccount } = await loadFixture(deployMarket);
       
-      const amountToBuy = 100
+      const amountToBuy = ethers.parseEther('100')
       const amountOfUSD = 2
       await expect(
         market.connect(otherAccount).buyShardsInUsd(amountToBuy, {
@@ -147,7 +146,7 @@ describe('Market', function() {
     it("Buy some shards with ETH", async function() {
       const { shard, market, owner, otherAccount } = await loadFixture(deployMarket);
       
-      const amountToBuy = 100
+      const amountToBuy = ethers.parseEther('100')
       const amountOfEth = ethers.parseEther('0.0010')
       
       await expect(
@@ -162,7 +161,7 @@ describe('Market', function() {
     it("Buy some shards with ETH (insufficient amount)", async function() {
       const { shard, market, owner, otherAccount } = await loadFixture(deployMarket);
       
-      const amountToBuy = 100
+      const amountToBuy = ethers.parseEther('100')
       const amountOfEth = ethers.parseEther('0.00010')
       
       await expect(
@@ -174,23 +173,6 @@ describe('Market', function() {
     })
   })
 
-/*   describe("Acquisitions of ItemSkin", function() {
-    it("Buy an itemSkin with Shard", async function() {
-      const { shard, itemSkin, market, owner, otherAccount } = await loadFixture(deployMarket);
-      
-      const amountToBuy = 1
-      const amountOfShard = ethers.parseEther('100')
-      await expect(
-        market.connect(otherAccount).buySkinGame(2, amountToBuy, 100, {
-          value: amountOfShard
-        })
-      )
-      .to.emit(market, 'BuyItemSkinInShard')
-      .withArgs(otherAccount.address, amountOfShard, amountToBuy)
-    })
-   
-  }) */
-
 
   describe("Whitdraw of MATIC", function() {
     it("Withdraw some MATIC", async function() {
@@ -198,7 +180,7 @@ describe('Market', function() {
       
       const maticOfShardToBuy = ethers.parseEther('2');
 
-      await market.connect(otherAccount).buyShardsInMatic(100, {
+      await market.connect(otherAccount).buyShardsInMatic(ethers.parseEther('100'), {
         value: maticOfShardToBuy
       })
 

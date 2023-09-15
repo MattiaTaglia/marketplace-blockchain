@@ -13,24 +13,18 @@ contract Market is Ownable {
 
   uint256 public shardsPerMatic = 50;
   
-  uint public constant usdDecimals = 2;
-  uint public constant tokenDecimals = 18;
-
-  //address public oracleEthUsdPrice;
-  //address public oracleMaticUsdPrice; 
 
   uint256 public ownerMaticAmountToWithdraw;
   uint256 public ownerShardAmountToWithdraw;
 
   Shard shard;
-  ItemSkin itemSkin;
+  //ItemSkin itemSkin;
 
   PriceConsumerV3 public ethUsdContract;
   PriceConsumerV3 public maticUsdContract;
   PriceConsumerV3 oracleContract;
 
-  constructor(address tokenAddress, address nftAddress, 
-    address oracleEthUsdPrice, address oracleMaticUsdPrice) {
+  constructor(address tokenAddress, address oracleEthUsdPrice, address oracleMaticUsdPrice) {
 
     //oracleEthUsdPrice = address(0x0715A7794a1dc8e42615F059dD6e406A6594651A);
     //oracleMaticUsdPrice = address(0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada);
@@ -38,15 +32,17 @@ contract Market is Ownable {
     ethUsdContract = PriceConsumerV3(oracleEthUsdPrice);
     maticUsdContract = PriceConsumerV3(oracleMaticUsdPrice);
     shard = Shard(tokenAddress);
-    itemSkin = ItemSkin(nftAddress);
 
   }
 
   event BuyShardsInMatic(address buyer, uint256 amountOfMatic, uint256 amountOfShards);
   event BuyShardsInEth(address buyer, uint256 amountOfEth, uint256 amountOfShards);
   event BuyShardsInUsd(address buyer, uint256 amountOfUsd, uint256 amountOfShards);
-  event BuyItemSkinInShard(address buyer, uint256 amountOfShards, uint256 amountOfSkin);
+  //event BuyItemSkinInShard(address buyer, uint256 amountOfShards, uint256 amountOfSkin);
 
+  function getShardBalance() public view returns (uint) {
+    return shard.balanceOf(address(this));
+  }
 
   function convertEthInUsd(uint weiAmount) public view returns (uint) {
     uint8 ethUsdPriceDecimals = ethUsdContract.getPriceDecimals();
@@ -97,7 +93,7 @@ contract Market is Ownable {
     uint256 vendorBalance = shard.balanceOf(address(this));
     require(vendorBalance >= amount, "Vendor contract has not enough shards in its balance");
 
-    uint amountOfMaticRequired = (amount / shardsPerMatic) * (10 ** 18);
+    uint amountOfMaticRequired = (amount / shardsPerMatic);
     require(msg.value >= amountOfMaticRequired, "Incorrect number of MATIC given for the wanted amount of shards");
 
     SafeERC20.safeTransfer(shard, msg.sender, amount);
@@ -119,7 +115,7 @@ contract Market is Ownable {
     uint256 amountOfUsdFromEth = convertEthInUsd(msg.value);
     uint256 amountOfMaticFromUsd = convertUsdInMatic(amountOfUsdFromEth); 
 
-    uint amountOfMaticRequired = (amount / shardsPerMatic) * (10 ** 44);
+    uint amountOfMaticRequired = (amount / shardsPerMatic) * (10 ** 26);
     require(amountOfMaticFromUsd >= amountOfMaticRequired, "Incorrect number of MATIC given for the wanted amount of shards");
 
     SafeERC20.safeTransfer(shard, msg.sender, amount);
@@ -140,7 +136,7 @@ contract Market is Ownable {
 
     uint256 amountOfMaticFromUsd = convertUsdInMatic(msg.value);
     
-    uint amountOfMaticRequired = (amount / shardsPerMatic) * (10 ** 18);
+    uint amountOfMaticRequired = (amount / shardsPerMatic);
     require(amountOfMaticFromUsd >= amountOfMaticRequired, "Incorrect number of MATIC given for the wanted amount of shards");
 
     SafeERC20.safeTransfer(shard, msg.sender, amount);
@@ -153,7 +149,7 @@ contract Market is Ownable {
   /**
   * @notice Allow a user to buy ItemSkin paying with Shard
   */
-  function buySkinGame(uint256 skinId, uint256 amount, uint256 skinPrice) public payable {
+/*   function buySkinGame(uint256 skinId, uint256 amount, uint256 skinPrice) public payable {
     uint256 amountOfShardsRequired = amount * skinPrice * (10 ** 18);
     require(msg.value == amountOfShardsRequired, "Not enough shards");
 
@@ -165,7 +161,7 @@ contract Market is Ownable {
     ownerShardAmountToWithdraw += amountOfShardsRequired;
 
     emit BuyItemSkinInShard(msg.sender, msg.value, amount);
-  }
+  } */
   
   /**
   * @notice Allow the owner of the contract to withdraw MATIC
