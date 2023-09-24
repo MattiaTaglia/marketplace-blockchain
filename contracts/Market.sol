@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
+import "hardhat/console.sol";
 
 contract Market is Ownable {
 
@@ -16,6 +17,7 @@ contract Market is Ownable {
 
   uint256 public ownerMaticAmountToWithdraw;
   uint256 public ownerShardAmountToWithdraw;
+  uint256 public ownerEthToWithdraw;
 
   Shard shard;
   //ItemSkin itemSkin;
@@ -84,6 +86,12 @@ contract Market is Ownable {
     return usdConvertedInMatic; 
   }
 
+  function convertMaticInEth(uint maticAmount) public view returns (uint) {
+    uint usdAmount = convertMaticInUsd(maticAmount);
+    uint ethAmount = convertUsdInEth(usdAmount);
+
+    return ethAmount; 
+  }
   /**
   * @notice Allow a user to buy Shards paying with MATIC
   */
@@ -117,10 +125,11 @@ contract Market is Ownable {
 
     uint amountOfMaticRequired = (amount / shardsPerMatic) * (10 ** 26);
     require(amountOfMaticFromUsd >= amountOfMaticRequired, "Incorrect number of MATIC given for the wanted amount of shards");
-
+    
     SafeERC20.safeTransfer(shard, msg.sender, amount);
 
     ownerMaticAmountToWithdraw += amountOfMaticRequired;
+    ownerEthToWithdraw += msg.value;
 
     emit BuyShardsInEth(msg.sender, msg.value, amount);
   }
@@ -166,6 +175,15 @@ contract Market is Ownable {
   /**
   * @notice Allow the owner of the contract to withdraw MATIC
   */
+  function ethWithdraw() public onlyOwner {
+    require(ownerEthToWithdraw > 0, "Owner has not balance to withdraw");
+
+    (bool sent,) = msg.sender.call{value: ownerEthToWithdraw}("");
+    require(sent, "Failed to send user balance back to the owner");
+
+    ownerEthToWithdraw = 0;
+  }
+
   function maticWithdraw() public onlyOwner {
     require(ownerMaticAmountToWithdraw > 0, "Owner has not balance to withdraw");
 
@@ -174,14 +192,15 @@ contract Market is Ownable {
 
     ownerMaticAmountToWithdraw = 0;
   }
-
   /**
   * @notice Allow the owner of the contract to withdraw Shard
   */
   function shardWithdraw() public onlyOwner {
     require(ownerShardAmountToWithdraw > 0, "Owner has not balance to withdraw");
 
-    (bool sent,) = msg.sender.call{value: ownerShardAmountToWithdraw}("");
+    uint amountToWithdraw = ownerShardAmountToWithdraw;
+
+    (bool sent,) = msg.sender.call{value: amountToWithdraw}("");
     require(sent, "Failed to send user balance back to the owner");
 
     ownerShardAmountToWithdraw = 0;

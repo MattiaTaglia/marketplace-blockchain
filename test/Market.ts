@@ -87,7 +87,7 @@ describe('Market', function() {
     it("Get conversion MATIC/USD", async function() {
       const { priceConsumer_MATIC_USD, market } = await loadFixture(deployMarket);
       
-      const maticValue = 0.5
+      const maticValue = 2
       const usdValue = 2
 
       const price = await priceConsumer_MATIC_USD.getLatestPrice();
@@ -111,6 +111,15 @@ describe('Market', function() {
       const convertedUsdMatic = await market.convertUsdInMatic(convertedEthUsd);
       console.log(round2Decimals(fromWei(Number(convertedEthUsd) / 10 ** 8)), "USD are: ",  
         round2Decimals(fromWei(Number(convertedUsdMatic) / 10 ** 26)), "MATIC")
+    })
+
+    it("Get conversion MATIC/ETH", async function() {
+      const { market } = await loadFixture(deployMarket);
+  
+      const maticValue = 10
+
+      const converted = await market.convertMaticInEth(toWei(maticValue))
+      console.log(maticValue, "MATIC are:", fromWei(Number(converted) / 10 ** 26), "ETH")
     })
   })
 
@@ -183,13 +192,19 @@ describe('Market', function() {
       await market.connect(otherAccount).buyShardsInMatic(ethers.parseEther('100'), {
         value: maticOfShardToBuy
       })
+      
+      const initialMarketBalance = await ethers.provider.getBalance(await market.getAddress())
+      console.log("Initial market balance", initialMarketBalance)
+      expect(initialMarketBalance).to.equal(ethers.parseEther('2'))
 
       const txWithdraw = await market.connect(owner).maticWithdraw();
 
-      const marketBalance = await ethers.provider.getBalance(await market.getAddress())
-      expect(marketBalance).to.equal(0)
-
+      const afterWitdhrawMarketBalance = await ethers.provider.getBalance(await market.getAddress())
+      console.log("After withdraw market balance", afterWitdhrawMarketBalance)
+      
+      expect(afterWitdhrawMarketBalance).to.equal(0)
       await expect(txWithdraw).to.changeEtherBalance(owner, maticOfShardToBuy)
+
     })
   })
 })
