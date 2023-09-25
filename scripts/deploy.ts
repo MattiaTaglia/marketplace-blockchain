@@ -1,3 +1,4 @@
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ethers } from "hardhat";
 
 async function main() {
@@ -26,6 +27,12 @@ async function main() {
   const priceConsumer_ETH_USD_address = await priceConsumer_ETH_USD.getAddress()
   const priceConsumer_MATIC_USD_address = await priceConsumer_MATIC_USD.getAddress()
 
+/*   const customMatic = await ethers.deployContract("CustomMatic");
+  const customMaticAddress = await customMatic.getAddress();
+
+  const bridge = await ethers.deployContract("Bridge", [customMaticAddress]);
+  const bridgeAddress = await bridge.getAddress(); */
+
   const market = await ethers.deployContract("Market", [shardAddress, priceConsumer_ETH_USD, priceConsumer_MATIC_USD_address])
   
   const marketAddress = await market.getAddress()
@@ -36,11 +43,12 @@ async function main() {
     "\nPriceConsumer_MATIC_USD address:", priceConsumer_MATIC_USD_address,
     "\nMarket address:", marketAddress)
 
+  await market.transferOwnership(deployer.address)
+  console.log("Transfered ownership of market to deployer", deployer.address)
+  
   await shard.transfer(marketAddress, ethers.parseEther('4000'))
   console.log("Transfered some shards to Market")
   
-  await market.transferOwnership(deployer.address)
-  console.log("Transfered ownership of market to deployer", deployer.address)
 }
 
 // We recommend this pattern to be able to use async/await everywhere

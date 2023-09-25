@@ -23,6 +23,12 @@ describe('Market', function() {
     const Shard = await ethers.getContractFactory("Shard");
     const shard = await Shard.deploy(shardAmount);
 
+/*     const CustomMatic = await ethers.getContractFactory("CustomMatic");
+    const customMatic = await CustomMatic.deploy();
+
+    const Bridge = await ethers.getContractFactory("Bridge");
+    const bridge = await Bridge.deploy(await customMatic.getAddress()); */
+
     const MockV3Aggregator = await ethers.getContractFactory("MockV3Aggregator");
     const mockV3Aggregator_ETH_USD = await MockV3Aggregator.deploy(DECIMALS, INITIAL_PRICE_ETH_USD);
     const mockV3Aggregator_MATIC_USD = await MockV3Aggregator.deploy(DECIMALS, INITIAL_PRICE_MATIC_USD);
@@ -37,7 +43,7 @@ describe('Market', function() {
 
     const Market = await ethers.getContractFactory("Market");
     const market = await Market.deploy(await shard.getAddress(), await priceConsumer_ETH_USD.getAddress(), 
-      priceConsumer_MATIC_USD.getAddress())
+      await priceConsumer_MATIC_USD.getAddress())
 
     await shard.transfer(await market.getAddress(), ethers.parseEther('1000'))
     await market.transferOwnership(owner.address)

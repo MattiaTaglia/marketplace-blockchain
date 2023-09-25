@@ -3,6 +3,8 @@ pragma solidity ^0.8.9;
 
 import "./Shard.sol";
 import "./PriceConsumerV3.sol";
+import "./bridge/Bridge.sol";
+import "./bridge/CustomMatic.sol";
 import "./ItemNFT.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -20,6 +22,8 @@ contract Market is Ownable {
   uint256 public ownerEthToWithdraw;
 
   Shard shard;
+  Bridge bridge;
+  CustomMatic customMatic;
   //ItemSkin itemSkin;
 
   PriceConsumerV3 public ethUsdContract;
@@ -28,13 +32,11 @@ contract Market is Ownable {
 
   constructor(address tokenAddress, address oracleEthUsdPrice, address oracleMaticUsdPrice) {
 
-    //oracleEthUsdPrice = address(0x0715A7794a1dc8e42615F059dD6e406A6594651A);
-    //oracleMaticUsdPrice = address(0xd0D5e3DB44DE05E9F294BB0a3bEEaF030DE24Ada);
-
     ethUsdContract = PriceConsumerV3(oracleEthUsdPrice);
     maticUsdContract = PriceConsumerV3(oracleMaticUsdPrice);
     shard = Shard(tokenAddress);
-
+/*     bridge = Bridge(bridgeAddress);
+    customMatic = CustomMatic(customMaticAddress); */
   }
 
   event BuyShardsInMatic(address buyer, uint256 amountOfMatic, uint256 amountOfShards);
@@ -42,10 +44,16 @@ contract Market is Ownable {
   event BuyShardsInUsd(address buyer, uint256 amountOfUsd, uint256 amountOfShards);
   //event BuyItemSkinInShard(address buyer, uint256 amountOfShards, uint256 amountOfSkin);
 
+  /**
+  * @notice Return the balance of shards of this contract
+  */
   function getShardBalance() public view returns (uint) {
     return shard.balanceOf(address(this));
   }
 
+  /**
+  * @notice Conversion between ETH/USD
+  */
   function convertEthInUsd(uint weiAmount) public view returns (uint) {
     uint8 ethUsdPriceDecimals = ethUsdContract.getPriceDecimals();
     uint ethUsdPrice = uint(ethUsdContract.getLatestPrice());
@@ -55,6 +63,9 @@ contract Market is Ownable {
     return ethConvertedInUsd; 
   }
 
+  /**
+  * @notice Conversion between USD/ETH
+  */
   function convertUsdInEth(uint usdAmount) public view returns (uint){
     uint8 ethPriceDecimals = ethUsdContract.getPriceDecimals();
     uint ethPrice = uint(ethUsdContract.getLatestPrice());
@@ -66,6 +77,9 @@ contract Market is Ownable {
     return usdConvertedInEth;
   }
 
+  /**
+  * @notice Conversion between MATIC/USD
+  */
   function convertMaticInUsd(uint weiAmount) public view returns (uint) {
     uint8 maticUsdPriceDecimals = maticUsdContract.getPriceDecimals();
     uint maticUsdPrice = uint(maticUsdContract.getLatestPrice());
@@ -75,6 +89,9 @@ contract Market is Ownable {
     return maticConvertedInUsd;  
   }
 
+  /**
+  * @notice Conversion between USD/MATIC
+  */
   function convertUsdInMatic(uint usdAmount) public view returns (uint) {
     uint8 maticPriceDecimals = maticUsdContract.getPriceDecimals();
     uint maticPrice = uint(maticUsdContract.getLatestPrice());
@@ -85,13 +102,17 @@ contract Market is Ownable {
 
     return usdConvertedInMatic; 
   }
-
+  
+  /**
+  * @notice Conversion between MATIC/ETH
+  */
   function convertMaticInEth(uint maticAmount) public view returns (uint) {
     uint usdAmount = convertMaticInUsd(maticAmount);
     uint ethAmount = convertUsdInEth(usdAmount);
 
     return ethAmount; 
   }
+
   /**
   * @notice Allow a user to buy Shards paying with MATIC
   */
@@ -125,10 +146,12 @@ contract Market is Ownable {
 
     uint amountOfMaticRequired = (amount / shardsPerMatic) * (10 ** 26);
     require(amountOfMaticFromUsd >= amountOfMaticRequired, "Incorrect number of MATIC given for the wanted amount of shards");
-    
     SafeERC20.safeTransfer(shard, msg.sender, amount);
-
-    ownerMaticAmountToWithdraw += amountOfMaticRequired;
+    
+    //uint256 tokenToBridge = amountOfMaticFromUsd / (10 ** 44);
+    //bridge.bridgeToken{value: msg.value}(tokenToBridge);
+    //ownerMaticAmountToWithdraw += tokenToBridge;
+    
     ownerEthToWithdraw += msg.value;
 
     emit BuyShardsInEth(msg.sender, msg.value, amount);
@@ -173,7 +196,7 @@ contract Market is Ownable {
   } */
   
   /**
-  * @notice Allow the owner of the contract to withdraw MATIC
+  * @notice Allow the owner of the contract to withdraw ETH
   */
   function ethWithdraw() public onlyOwner {
     require(ownerEthToWithdraw > 0, "Owner has not balance to withdraw");
@@ -184,6 +207,9 @@ contract Market is Ownable {
     ownerEthToWithdraw = 0;
   }
 
+  /**
+  * @notice Allow the owner of the contract to withdraw MATIC
+  */
   function maticWithdraw() public onlyOwner {
     require(ownerMaticAmountToWithdraw > 0, "Owner has not balance to withdraw");
 
@@ -192,6 +218,7 @@ contract Market is Ownable {
 
     ownerMaticAmountToWithdraw = 0;
   }
+
   /**
   * @notice Allow the owner of the contract to withdraw Shard
   */
@@ -206,5 +233,17 @@ contract Market is Ownable {
     ownerShardAmountToWithdraw = 0;
   }
 
+  /**
+  * @notice Allow the owner of the contract to withdraw ETH
+  */
+  function maticWithdrawBridge() public onlyOwner {
+    require(ownerMaticAmountToWithdraw > 0, "Owner has not balance to withdraw");
+
+    console.log(ownerMaticAmountToWithdraw);
+    SafeERC20.safeTransfer(customMatic, msg.sender, ownerMaticAmountToWithdraw);
+
+    ownerMaticAmountToWithdraw = 0;
+  }
+  
 
 }
